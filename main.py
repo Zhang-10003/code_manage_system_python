@@ -11,7 +11,6 @@ def calc(obj1, obj2):
     # 先获取两个对象传入的文件路径
     file1_path = obj1['file_path']
     file2_path = obj2['file_path']
-    print(file1_path)
     # 预处理两个代码文件
     pre.preprocess(file1_path, 'test1')
     pre.preprocess(file2_path, 'test2')
@@ -69,7 +68,7 @@ def process():
 
 # ai对话接口
 @app.route('/api/aiChat', methods=['POST'])
-def ai_interface():
+def ai_interface_chat():
     try:
         data = request.json
         user_input = data.get("text", "")
@@ -105,10 +104,100 @@ def ai_interface():
             response_format={"type": "json_object"},
         )
         answer = completion.choices[0].message.content
-        return jsonify({"text": answer, "data": "000"})
+
+        # 解析Kimi的回答
+        answer_json = json.loads(answer)
+        text_content = answer_json.get("text", "")
+
+        # 判断回答内容是否为代码
+        if "#include" in text_content or "using namespace" in text_content or "int main()" in text_content:
+            return jsonify({
+                "data": "000",
+                "text": text_content
+            })
+        else:
+            return jsonify({
+                "data": "000",
+                "text": text_content
+            })
+
     except Exception as e:
         app.logger.error(f"Error occurred: {e}")  # 记录错误日志
-        return jsonify({"text": "服务器繁忙", "data": "001"}), 500
+        return jsonify({
+            "data": "001",
+            "text": "服务器繁忙，请稍后重试"
+        }), 500
+
+
+# ai一键分析代码
+@app.route('/api/aiAnalyzeCode', methods=['POST'])
+def ai_interface_analyze_code():
+    try:
+        data = request.json
+        user_code_path = data.get("file_path", "")  # 获取用户上传的代码文件路径
+
+        # 从文件中读取代码内容到变量 user_code
+        with open(user_code_path, "r", encoding="utf-8") as file:
+            user_code = file.read()
+
+        # 初始化OpenAI客户端
+        client = OpenAI(
+            api_key="sk-BQ3pzHPLzQkJIgDfom0DlwXsN6278JsnI8Ac3UGL7Ol79KMe",
+            base_url="https://api.moonshot.cn/v1",
+        )
+
+        # 系统提示，要求Kimi分析代码
+        system_prompt = """
+        你是月之暗面（Kimi）的智能客服，你负责分析用户上传的代码。请对代码实现功能进行简要概括。
+
+        请使用如下 JSON 格式输出你的回复：
+        {
+            "text": "代码分析结果"
+        }
+
+        注意：
+        1. 只能返回 `text` 字段，不能包含 `image` 或 `url` 字段。
+        2. `text` 字段中只能包含文字信息。
+        """
+
+        # 调用 API 生成代码分析
+        completion = client.chat.completions.create(
+            model="moonshot-v1-8k",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_code}
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+
+        # 提取分析结果
+        answer = completion.choices[0].message.content
+        answer_json = json.loads(answer)  # 将返回的JSON字符串解析为字典
+
+        # 确保返回的格式符合要求
+        result = {
+            "data": "000",
+            "text": answer_json.get("text", "无法获取代码分析结果")
+        }
+
+        return jsonify(result)
+
+    except Exception as e:
+        app.logger.error(f"Error occurred: {e}")  # 记录错误日志
+
+        # 检查是否是网络问题或链接解析失败
+        if "base_url" in str(e) or "网络" in str(e):
+            return jsonify({
+                "data": "001",
+                "text": "服务器繁忙，解析链接时遇到问题。请检查链接的合法性，或稍后重试。"
+            }), 500
+        else:
+            return jsonify({
+                "data": "001",
+                "text": "服务器繁忙，请稍后再试。"
+            }), 500
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8088)
