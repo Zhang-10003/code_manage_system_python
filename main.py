@@ -4,9 +4,15 @@ import checkRepeatRate as check
 import json
 from openai import OpenAI
 from pathlib import Path
+import mysql.connector
+from mysql.connector import Error  #pip install mysql-connector-python
+
 
 app = Flask(__name__)
 # 假设的 calc 函数，计算两个对象之间的值
+
+
+
 def calc(obj1, obj2):
     # 先获取两个对象传入的文件路径
     file1_path = obj1['file_path']
@@ -198,6 +204,100 @@ def ai_interface_analyze_code():
                 "text": "服务器繁忙，请稍后再试。"
             }), 500
 
+# 发送邮件功能
+# @app.route('/send-sms', methods=['POST'])
+# def send_sms():
+#     pass
+@app.route('/api/queryTeacherJob', methods=['POST'])
+def queryTeacherJob():
+    try:
+        # 建立连接
+        connection = mysql.connector.connect(
+            host='localhost',  # 数据库服务器地址
+            port=23306,  # 数据库端口
+            user='root',  # 数据库用户名
+            password='123456',  # 数据库密码
+            database='code_manage_system'  # 数据库名称
+        )
+
+        if connection.is_connected():
+            print("数据库连接成功！")
+            # 获取数据库服务器信息
+            db_info = connection.get_server_info()
+            print(f"连接到 MySQL 数据库，版本: {db_info}")
+
+            # 创建游标对象
+            cursor = connection.cursor()
+
+            # 获取 POST 请求中的 JSON 数据
+            data = request.json
+
+            # 获取 teacher_id
+            teacher_id = data.get('teacher_id')
+            if not teacher_id:  # 检查是否为空
+                return jsonify({
+                    "code": "001",
+                    "info": "请输入教师id",
+                    "data": []
+                }), 400
+
+            # 执行 SQL 查询
+            query = """
+            SELECT job_id, title, content, course_id, class_id, status, start_time, end_time
+            FROM job 
+            WHERE class_id IN (
+                SELECT class_id 
+                FROM class 
+                WHERE teacher_id = %s
+            )
+            """
+            cursor.execute(query, (teacher_id,))
+            records = cursor.fetchall()
+
+            # 检查查询结果是否为空
+            if not records:
+                return jsonify({
+                    "code": "001",
+                    "info": "该教师没有课程",
+                    "data": []
+                }), 404
+
+            # 将查询结果转换为字典列表
+            result = []
+            for row in records:
+                job_data = {
+                    "job_id": row[0],
+                    "title": row[1],
+                    "content": row[2],
+                    "course_id": row[3],
+                    "class_id": row[4],
+                    "status": row[5],
+                    "startTime": row[6].isoformat() + "Z" if row[6] else None,
+                    "endTime": row[7].isoformat() + "Z" if row[7] else None
+                }
+                result.append(job_data)
+
+            print("查询结果：", result)
+
+            # 返回 JSON 格式的查询结果
+            return jsonify({
+                "code": "000",
+                "info": "操作成功",
+                "data": result
+            })
+
+    except Error as e:
+        print(f"连接数据库时发生错误: {e}")
+        return jsonify({
+            "code": "001",
+            "info": str(e),
+            "data": []
+        }), 500
+    finally:
+        if connection.is_connected():
+            cursor.close()
+            connection.close()
+            print("数据库连接已关闭。")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8088)
