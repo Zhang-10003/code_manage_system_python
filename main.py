@@ -268,11 +268,11 @@ def queryTeacherJob():
             result = []
             for row in records:
                 job_data = {
-                    "job_id": row[0],
+                    "jobId": row[0],
                     "title": row[1],
                     "content": row[2],
-                    "course_id": row[3],
-                    "class_id": row[4],
+                    "courseId": row[3],
+                    "classId": row[4],
                     "status": row[5],
                     "startTime": row[6].isoformat() + "Z" if row[6] else None,
                     "endTime": row[7].isoformat() + "Z" if row[7] else None
@@ -342,6 +342,8 @@ def queryJobCommitRate():
         return jsonify({"code": "001", "info": f"数据库错误: {err}", "submitted": 0})
     except Exception as e:
         return jsonify({"code": "001", "info": f"发生错误: {e}", "submitted": 0})
+
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8088)
