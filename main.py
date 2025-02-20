@@ -49,28 +49,44 @@ def calc(obj1, obj2):
 # 查重
 @app.route('/checkRepeatRate', methods=['POST'])
 def process():
-    # 获取传入的 JSON 数据
-    data = request.json
-    # 获取阈值
-    threshold = data.get('threshold', 0.8)
-    # 获取对象列表
-    objects = data.get('objects', [])
-    # 存储结果的字典
-    results = []
-    # 两两计算对象之间的值
-    for i in range(len(objects)):
-        for j in range(i + 1, len(objects)):
-            obj1 = objects[i]
-            obj2 = objects[j]
-            # 计算值
-            value = calc(obj1, obj2)
-            # 如果值大于阈值，则存储结果
-            if value > threshold:
-                # 将结果格式化为 [name1, name2, percentage] 的形式
-                result = [obj1['name'], obj2['name'], f"{value * 100:.1f}%"]
-                results.append(result)
-    # 返回结果
-    return jsonify(results)
+    try:
+        # 获取传入的 JSON 数据
+        data = request.json
+        # 获取阈值
+        threshold = data.get('threshold', 0.8)
+        # 获取对象列表
+        objects = data.get('objects', [])
+        # 存储结果的列表
+        results = []
+        # 两两计算对象之间的值
+        for i in range(len(objects)):
+            for j in range(i + 1, len(objects)):
+                obj1 = objects[i]
+                obj2 = objects[j]
+                # 计算值
+                value = calc(obj1, obj2)
+                # 如果值大于阈值，则存储结果
+                if value > threshold:
+                    # 将结果格式化为字典的形式
+                    result = {
+                        "student1": obj1['name'],
+                        "student2": obj2['name'],
+                        "rate": f"{value * 100:.1f}%"
+                    }
+                    results.append(result)
+        # 返回成功结果
+        return jsonify({
+            "code": "000",
+            "info": "操作成功",
+            "data": results
+        })
+    except Exception as e:
+        # 捕获异常并返回错误信息
+        return jsonify({
+            "code": "001",
+            "info": "操作失败",
+            "data": "",
+        })
 
 # ai对话接口
 @app.route('/api/aiChat', methods=['POST'])
