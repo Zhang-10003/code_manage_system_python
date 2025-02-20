@@ -208,6 +208,8 @@ def ai_interface_analyze_code():
 # @app.route('/send-sms', methods=['POST'])
 # def send_sms():
 #     pass
+
+# 查询老师的所有作业
 @app.route('/api/queryTeacherJob', methods=['POST'])
 def queryTeacherJob():
     try:
@@ -298,6 +300,48 @@ def queryTeacherJob():
             cursor.close()
             connection.close()
             print("数据库连接已关闭。")
+
+# 查询某个作业的提交人数/未提交人数
+@app.route('/api/queryJobCommitRate', methods=['POST'])
+def queryJobCommitRate():
+    try:
+        # 获取请求中的数据
+        data = request.json
+        job_id = data.get("job_id", "").strip()
+
+        if not job_id:
+            return jsonify({"code": "001", "info": "job_id不能为空", "submitted": 0})
+
+        # 建立数据库连接
+        connection = mysql.connector.connect(
+            host='localhost',  # 数据库服务器地址
+            port=23306,  # 数据库端口
+            user='root',  # 数据库用户名
+            password='123456',  # 数据库密码
+            database='code_manage_system'  # 数据库名称
+        )
+
+        # 创建游标
+        cursor = connection.cursor(dictionary=True)
+
+        # 查询指定 job_id 的提交人数
+        query = "SELECT COUNT(*) AS submitted FROM student_job WHERE job_id = %s AND status = 'submitted'"
+        cursor.execute(query, (job_id,))
+        result = cursor.fetchone()
+
+        # 关闭游标和连接
+        cursor.close()
+        connection.close()
+
+        if result:
+            return jsonify({"code": "000", "info": "操作成功", "submitted": result['submitted']})
+        else:
+            return jsonify({"code": "001", "info": "未找到数据", "submitted": 0})
+
+    except mysql.connector.Error as err:
+        return jsonify({"code": "001", "info": f"数据库错误: {err}", "submitted": 0})
+    except Exception as e:
+        return jsonify({"code": "001", "info": f"发生错误: {e}", "submitted": 0})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8088)
