@@ -1,8 +1,5 @@
 import os
 
-from aliyunsdkcore.acs_exception.exceptions import ClientException, ServerException
-from aliyunsdkcore.client import AcsClient
-from aliyunsdkcore.request import CommonRequest
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -14,10 +11,6 @@ from pathlib import Path
 import mysql.connector
 from mysql.connector import Error  #pip install mysql-connector-python
 
-ACCESS_KEY_ID = os.getenv('ALIYUN_ACCESS_KEY_ID')
-ACCESS_KEY_SECRET = os.getenv('ALIYUN_ACCESS_KEY_SECRET')
-SMS_TEMPLATE_CODE = os.getenv('ALIYUN_SMS_TEMPLATE_CODE')
-SIGN_NAME = "代码管理"  # 签名名称
 
 # pip install aliyun-python-sdk-core
 # pip install aliyun-python-sdk-dysmsapi
@@ -368,40 +361,8 @@ def queryJobCommitRate():
     except Exception as e:
         return jsonify({"code": "001", "info": f"发生错误: {e}", "submitted": 0})
 
-def send_sms(phone_number, name):
-    client = AcsClient(ACCESS_KEY_ID, ACCESS_KEY_SECRET, 'cn-hangzhou')
-
-    request = CommonRequest()
-    request.set_method('POST')
-    request.set_domain('dysmsapi.aliyuncs.com')
-    request.set_version('2017-05-25')
-    request.set_action_name('SendSms')
-
-    request.add_query_param('RegionId', "cn-hangzhou")
-    request.add_query_param('PhoneNumbers', phone_number)
-    request.add_query_param('SignName', SIGN_NAME)
-    request.add_query_param('TemplateCode', SMS_TEMPLATE_CODE)
-    request.add_query_param('TemplateParam', json.dumps({"name": name}))
-
-    try:
-        client.do_action_with_exception(request)
-    except (ClientException, ServerException) as e:
-        print(f"短信发送失败，异常信息：{str(e)}")
-
-@app.route('/api/sendSMS', methods=['POST'])
-def send_SMS():
-    data = request.json
-    data = data.get("data")
-    for user in data:
-        print(user)
-        phone = user.get('phone')
-        name = user.get('name')
-
-        send_sms(phone,name)
 
 
-
-    return {"code":"000"}
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=8088)
